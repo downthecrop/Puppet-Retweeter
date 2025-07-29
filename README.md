@@ -3,9 +3,9 @@ Keep following accounts that have blocked you by mirroring their public tweets t
 
 ## Quick start
 ```bash
-git clone https://github.com/yourname/puppet-retweeter.git
-cd puppet-retweeter
-npm install
+git clone https://github.com/downthecrop/Puppet-Retweeter.git
+cd Puppet-Retweeter
+npm i
 cp .env.example .env   # fill in the values
 npm start
 ```
@@ -24,11 +24,11 @@ Optional flags: `INCLUDE_REPLIES`, `INITIAL_FETCH`
 
 ## Getting X developer keys
 1. Log in with the retweet account.  
-2. Visit https://developer.x.com → create a **Free** “Automated Consumer / Hobby” project.  
+2. Visit https://developer.x.com → create a **Free** account project.  
 3. Inside the project create an **App** → set permissions to **Read + Write**.  
 4. Under *Keys & Tokens* generate:  
    - API Key & Secret → `TWITTER_APP_KEY`, `TWITTER_APP_SECRET`  
-   - Access Token & Secret → `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_SECRET`
+   - Access Token & Secret → `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_SECRET` *Keys Require Read/Write*
 
 ---
 
