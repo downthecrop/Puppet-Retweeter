@@ -18,7 +18,7 @@ npm start
 | `TARGET_USERNAME` | Account to mirror (no `@`) |
 | `NITTER_BASE` | Nitter URL that supports RSS, e.g. `https://nitter.privacyredirect.com` |
 
-Optional flags: `INCLUDE_REPLIES`, `INITIAL_FETCH`
+Optional flags: `INCLUDE_REPLIES`, `BACK_FILL`
 
 ---
 
