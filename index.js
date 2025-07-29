@@ -6,7 +6,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const TARGET_USERNAME  = process.env.TARGET_USERNAME
-const NITTER_BASE      = (process.env.NITTER_BASE ?? 'https://nitter.net').replace(/\/$/, '')
+const NITTER_BASE      = (process.env.NITTER_BASE ?? 'https://nitter.privacyredirect.com/').replace(/\/$/, '')
 const POLL_INTERVAL_MS = 600_000                              // 10 min
 const INITIAL_FETCH    = Math.min(Number(process.env.INITIAL_FETCH ?? 0), 25)
 const INCLUDE_REPLIES  = /^(1|true|yes|on)$/i.test(process.env.INCLUDE_REPLIES ?? '')
