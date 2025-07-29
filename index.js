@@ -8,7 +8,7 @@ dotenv.config()
 const TARGET_USERNAME  = process.env.TARGET_USERNAME
 const NITTER_BASE      = (process.env.NITTER_BASE ?? 'https://nitter.privacyredirect.com/').replace(/\/$/, '')
 const POLL_INTERVAL_MS = 600_000                              // 10 min
-const INITIAL_FETCH    = Math.min(Number(process.env.INITIAL_FETCH ?? 0), 25)
+const BACK_FILL        = Math.min(Number(process.env.BACK_FILL ?? 0), 10)
 const INCLUDE_REPLIES  = /^(1|true|yes|on)$/i.test(process.env.INCLUDE_REPLIES ?? '')
 const STATE_FILE       = 'state.json'
 
@@ -34,30 +34,28 @@ function classify (title) {
   return 'tweet'
 }
 
-async function fetchFeed (limit) {
+async function fetchFeed (since) {
   const url = `${NITTER_BASE}/${TARGET_USERNAME}/rss`
-  console.log(`Fetching RSS: ${url}`)
   try {
     const xml = await fetch(url, { headers: { 'User-Agent': 'puppet-retweeter/1.0' } })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text() })
 
     let items = parser.parse(xml)?.rss?.channel?.item
-    if (!items) { console.warn(`No data for account @${TARGET_USERNAME}`); return [] }
+    if (!items) return []
     if (!Array.isArray(items)) items = [items]
 
     const ids = []
     for (const it of items) {
       const link = typeof it.link === 'string' ? it.link : it.link?.['#text'] ?? ''
-      const id = link.match(/status\/(\\d+)/)?.[1]
+      const id   = link.match(/status\/(\d+)/)?.[1]
       if (!id) continue
       if (!INCLUDE_REPLIES && classify(it.title) === 'reply') continue
+      if (since && BigInt(id) <= BigInt(since)) break
       ids.push(id)
-      if (ids.length >= limit) break
     }
-    console.log(`Found ${ids.length} new entries`)
     return ids
   } catch (e) {
-    console.error(`Failed to fetch RSS feed: ${e}`)
+    console.error(`RSS fetch failed (${url}): ${e.message ?? e}`)
     return []
   }
 }
@@ -75,28 +73,32 @@ async function retweet (botId, id) {
 ;(async () => {
   if (!TARGET_USERNAME) throw new Error('TARGET_USERNAME missing')
 
-  const botId = (await client.v2.me()).data.id
-  const botName = (await client.v2.me()).data.username
-  console.log(`Relay started: @${TARGET_USERNAME} -> @${botName}`)
-  console.log(`Replies: ${INCLUDE_REPLIES ? 'on' : 'off'} | back‑fill: ${INITIAL_FETCH}`)
+  const bot   = await client.v2.me()
+  const botId = bot.data.id
+
+  console.log(`Relay started: @${TARGET_USERNAME} -> @${bot.data.username}`)
+  console.log(`Replies: ${INCLUDE_REPLIES ? 'on' : 'off'} | back‑fill: ${BACK_FILL}`)
   console.log(`Polling every ${POLL_INTERVAL_MS / 1000}s\n`)
 
   let since = await loadState()
 
-  while (true) {
-    const limit = since ? 10 : INITIAL_FETCH
-    const ids = (await fetchFeed(limit)).filter(id => !since || BigInt(id) > BigInt(since))
+  const backlog = (await fetchFeed(since)).slice(0, BACK_FILL).reverse()
+  if (backlog.length) console.log(`Back‑filling ${backlog.length} item(s)`)
+  for (const id of backlog) {
+    await retweet(botId, id)
+    since = id
+  }
+  if (backlog.length) await saveState(since)
 
-    if (ids.length) {
-      console.log(`-> ${ids.length} new item(s)`)
-      for (const id of ids.reverse()) {
-        await retweet(botId, id)
-        since = id
-        await saveState(since)
-      }
-    } else {
-      console.log(`Up to date (last ID ${since ?? 'none'})`)
+  while (true) {
+    const ids = (await fetchFeed(since)).reverse()
+    if (ids.length) console.log(`→ ${ids.length} new item(s)`)
+    for (const id of ids) {
+      await retweet(botId, id)
+      since = id
     }
+    if (ids.length) await saveState(since)
+    else console.log(`Up to date (last ID ${since ?? 'none'})`)
 
     console.log(`Waiting ${POLL_INTERVAL_MS / 1000}s …\n`)
     await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
